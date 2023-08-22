@@ -1,0 +1,453 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Kamakura's Defense</title>
+
+<body>
+  <!-- Create an `player UI console` HTML element -->
+  <p id="console"></p>
+
+
+  <!-- Import the Ga game engine files -->
+  <script src="ga.js"></script>
+  <script src="plugins.js"></script>
+  <script src="entity.js"></script>
+  <script>
+
+    //Create a new Ga instance, and start it.
+    //Pre-load images in the array.
+    gameHeight = 800;
+    gameWidth = 1600;
+    var g = ga(
+      gameWidth, gameHeight, setup,
+      [
+        "sounds/chimes.wav",
+        "images/button.png",
+      ]
+    );
+
+    //Start the Ga engine
+    g.start();
+
+    //Declare your global variables (global to this game)
+    var dungeon, player, treasure, enemies, chimes, exit,
+      message, gameScene, gameOverScene, castle;
+    //Player vars
+    var army, food, stone, wood, gold;
+    army = [];
+    //UI vars
+    var console
+    var foodValue, woodValue, stoneValue, goldValue
+    var makeSamuraiButton
+
+    function setup() {
+      food = 100;
+      stone = 10;
+      wood = 10;
+      gold = 10;
+
+
+      //Set the canvas border and background color
+      g.canvas.style.border = "1px black dashed";
+      g.backgroundColor = "white";
+      ground_bg = g.rectangle(gameWidth, 800, "tan", "black", 1);
+      ocean = g.rectangle(100, 800, "lightblue", "black", 1);
+      console_bg = g.rectangle(300, 800, "white", "black", 4);
+      console_bg.x = gameWidth - console_bg.width;
+
+      castle = g.rectangle(100, 100, "grey", "black", 1);
+      castle.health = 500;
+      castle.attack = 10;
+      castle.bar = makeHealthBar(castle.width, 8);
+      castle.addChild(castle.bar);
+
+      //  var castle = makeCastle();
+      castle.x = gameWidth - console_bg.width - castle.width - 20;
+      castle.y = g.canvas.height / 2 - castle.halfHeight;
+
+      foodLabel = g.text("Food: ", "22px sans-serif", "black");
+      foodLabel.x = gameWidth - console_bg.width;
+      foodValue = g.text("", "22px sans-serif", "black");
+      foodValue.x = gameWidth - console_bg.width + 100;
+
+      woodLabel = g.text("Wood: ", "22px sans-serif", "black");
+      woodLabel.x = gameWidth - console_bg.width;
+      woodLabel.y += 30;
+      woodValue = g.text("", "22px sans-serif", "black");
+      woodValue.x = gameWidth - console_bg.width + 100;
+      woodValue.y += 30;
+
+
+
+      stoneLabel = g.text("Stone: ", "22px sans-serif", "black");
+      stoneLabel.x = gameWidth - console_bg.width;
+      stoneLabel.y += 60;
+      stoneValue = g.text("", "22px sans-serif", "black");
+      stoneValue.x = gameWidth - console_bg.width + 100;
+      stoneValue.y += 60;
+
+
+      goldLabel = g.text("Gold: ", "22px sans-serif", "black");
+      goldLabel.x = gameWidth - console_bg.width;
+      goldLabel.y += 90;
+      goldValue = g.text("", "22px sans-serif", "black");
+      goldValue.x = gameWidth - console_bg.width + 100;
+      goldValue.y += 90;
+
+      samuraiLabel = g.text("Samurai: 5 food 2 stone", "22px sans-serif", "black");
+      samuraiLabel.x = gameWidth - console_bg.width;
+      samuraiLabel.y += 120;
+
+      villagerLabel = g.text("Villager: 2 food", "22px sans-serif", "black");
+      villagerLabel.x = gameWidth - console_bg.width;
+      villagerLabel.y += 250;
+
+      var buttonFrames = g.frames(
+        "images/button.png",       //The tileset image
+        [[0, 0], [0, 96], [0, 192]],    //The `x` and `y` positions of frames
+        192, 96                    //The `width` and `height` of each frame
+      );
+      //Make a `button` using the frames.
+      makeSamuraiButton = g.button(buttonFrames);
+      makeVillagerButton = g.button(buttonFrames);
+
+      //Assign the button's optional and customizable `press`, `release`, 
+      //`over`, `out` and `tap` actions
+      makeSamuraiButton.press = function () {
+        spawnSamurai();
+      };
+
+      makeVillagerButton.press = function () {
+        spawnVillager();
+      };
+      // button.release = function() {
+      //   console.log("released");
+      // };
+      // button.over = function() {
+      //   console.log("over");
+      // };
+      // button.out = function() {
+      //   console.log("out");
+      // };
+      // button.tap = function() {
+      //   console.log("tapped");
+      // };
+
+      // //Position the button
+      makeSamuraiButton.x = g.canvas.width - console_bg.width;
+      makeSamuraiButton.y += 150;
+      makeVillagerButton.x = g.canvas.width - console_bg.width;
+      makeVillagerButton.y += 290;
+      //Create the `chimes` sound object
+      chimes = g.sound("sounds/chimes.wav");
+
+      //Create the `gameScene` group
+      gameScene = g.group();
+
+      //The player sprite
+      player = g.rectangle(32, 32, "blue");
+      player.x = castle.x;
+      player.y = castle.y;
+      gameScene.addChild(player);
+      player.speed = 2;
+
+      //Create the treasure
+      treasure = g.rectangle(16, 16, "gold");
+
+      //Position it next to the left edge of the canvas
+      //treasure.x = g.canvas.width - treasure.width - 10;
+      treasure.x = 10;
+      treasure.y = g.canvas.height / 2 - treasure.halfHeight;
+
+      //Alternatively, you could use Ga's built in convience method
+      //called `putCenter` to postion the sprite like this:
+      //g.stage.putCenter(treasure, 208, 0);
+
+      //Create a `pickedUp` property on the treasure to help us Figure
+      //out whether or not the treasure has been picked up by the player
+      treasure.pickedUp = false;
+
+      //Add the treasure to the `gameScene`
+      gameScene.addChild(treasure);
+      //Make the enemies
+      var numberOfEnemies = 6,
+        spacing = 48,
+        xOffset = 150,
+        speed = 2,
+        direction = 1;
+
+      enemies = [];
+
+      for (var i = 0; i < numberOfEnemies; i++) {
+        spawnMongol();
+      }
+
+      // var bar = makeHealthBar();
+      // castle_bg.addChild(bar);
+      ///if (castle.bar) castle.bar.width = castle.width;
+
+      //Add the health bar to the `gameScene`
+      // var bar = makeHealthBar();
+      // player.addChild(bar);
+
+      //Add some text for the game over message
+      message = g.text("Game Over!", "64px Futura", "black", 20, 20);
+      message.x = 120;
+      message.y = g.canvas.height / 2 - 64;
+
+      //Create a `gameOverScene` group and add the message sprite to it
+      gameOverScene = g.group(message);
+
+      //Make the `gameOverScene` invisible for now
+      gameOverScene.visible = false;
+
+      //Assign the player's keyboard controllers
+      g.fourKeyController(player, 2, 38, 39, 40, 37);
+
+      //set the game state to `play`
+      g.state = play;
+    }
+
+    function spawnMongol() {
+      ///var mongol = makeMongol();
+      var mongol = makeEntity("mongol");
+      mongol.x = 50;
+      mongol.y = g.randomInt(0, g.canvas.height - mongol.height);
+      enemies.push(mongol);
+      //Add the enemy to the `gameScene`
+      gameScene.addChild(mongol);
+    }
+
+    function spawnSamurai() {
+      if (food >= 5 && stone >= 2) {
+        food -= 5;
+        stone -= 2;
+
+        var samurai = makeEntity("samurai");
+        samurai.x = castle.x;
+        samurai.y = castle.y;
+        army.push(samurai);
+        //Add the enemy to the `gameScene`
+        gameScene.addChild(samurai);
+      }
+    }
+
+    function spawnVillager() {
+      if (food >= 2) {
+        food -= 2;
+
+        var villager = makeEntity("villager");
+        villager.x = castle.x;
+        villager.y = castle.y;
+        army.push(villager);
+        //Add the enemy to the `gameScene`
+        gameScene.addChild(villager);
+      }
+    }
+
+
+    //The `play` state
+    function play() {
+      //update UI
+      foodValue.content = food;
+      woodValue.content = wood;
+      stoneValue.content = stone;
+      goldValue.content = gold;
+
+      //Move the player
+      // player.vx =  player.speed;
+      // player.vy =  player.speed;
+
+
+      g.move(player);
+
+      //Keep the player contained inside the stage's area
+      g.contain(player, g.stage.localBounds);
+
+      // g.contain(samurai, g.stage.localBounds);
+      var enemiesToRemove = [];
+      var unitsToRemove = [];
+      //Set `playerHit` to `false` before checking for a collision
+      var playerHit = false;
+      //Loop through all the sprites in the `enemies` array
+
+      army.forEach(function (unit) {
+        
+        
+        console.log(unit.icon.state)
+        var iconTouch = g.hit(g.pointer, unit.icon);
+        if (unit.icon.state === "over" || unit.icon.state === "down") {
+          unit.icon.alpha = 1;
+
+        }
+        // unit.icon.alpha += .01;
+        console.log(iconTouch)
+        if (iconTouch) {
+          console.log("ICON TOUCH!!")
+          unit.icon.alpha = 1;
+
+        }
+
+        var closestEnemy = null;
+        var shortestDistance = Infinity; // This
+        if (unit.bar.inner.width < 0) {
+          unitsToRemove.push(unit);
+        }
+        enemies.forEach(function (enemy) {
+          var dx = enemy.x - unit.x;
+          var dy = enemy.y - unit.y;
+          var distance = Math.sqrt(dx * dx + dy * dy);
+
+          // 2. Identify the closest enemy
+          if (distance < shortestDistance && distance !== 0) { // avoid division by zero
+            shortestDistance = distance;
+            closestEnemy = enemy;
+          }
+        });
+
+        if (closestEnemy) {
+          // Calculate normalized direction to the closest enemy
+          var dx = closestEnemy.x - unit.x;
+          var dy = closestEnemy.y - unit.y;
+          var distance = Math.sqrt(dx * dx + dy * dy);
+
+          dx /= distance;
+          dy /= distance;
+
+          // 3. Move the unit toward the closest enemy
+          unit.vx = dx * unit.speed;
+          unit.vy = dy * unit.speed;
+          g.move(unit);
+
+          // 4. If the unit collides with that enemy, inflict damage
+          if (g.hitTestRectangle(unit, closestEnemy, false, true)) {
+            closestEnemy.bar.inner.width -= unit.attack;
+            unit.bar.inner.width -= closestEnemy.attack; // reduce health bar or use some other method to reduce health
+            // if (closestEnemy.health <= 0) g.remove(closestEnemy); // remove the enemy if health goes to zero
+          }
+        }
+      });
+
+      if (enemies <= 15) {
+        for (var i = 0; i < 15; i++) {
+          spawnMongol();
+        }
+      }
+
+      var count = 0;
+      enemies.forEach(function (enemy) {
+        count++;
+        /// if (enemy.health <= 0) g.remove(enemy);
+        if (enemy.bar.inner.width < 0) {
+          enemiesToRemove.push(enemy);
+        }
+
+        if (castle) {
+          var dx = castle.x - enemy.x;
+          var dy = castle.y - enemy.y;
+          var distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance !== 0) {  // avoid division by zero
+            // Normalize the difference
+            dx /= distance;
+            dy /= distance;
+
+            enemy.vx = dx * enemy.speed;
+            enemy.vy = dy * enemy.speed;
+          } else {
+            enemy.vx = 0;
+            enemy.vy = 0;
+          }
+        } else {
+          enemy.vx = enemy.speed * 1;
+          enemy.vy = enemy.speed; // default vertical speed
+        }
+        //Move the enemy
+        g.move(enemy);
+
+        //Check the enemy's screen boundaries
+        var enemyHitsEdges = g.contain(enemy, g.stage.localBounds);
+
+        //If the enemy hits the top or bottom of the stage, reverse
+        //its direction
+        if (enemyHitsEdges === "top" || enemyHitsEdges === "bottom") {
+          enemy.vy *= -1;
+        }
+
+        //Test for a collision. If any of the enemies are touching
+        //the player, set `playerHit` to `true`
+        if (g.hitTestRectangle(player, enemy)) {
+          playerHit = true;
+        }
+
+        if (g.hitTestRectangle(castle, enemy)) {
+          castle.bar.inner.width -= enemy.attack;
+          enemy.bar.inner.width -= castle.attack;
+        }
+
+      });
+      //console.log(count, " enemies remaining")
+      enemiesToRemove.forEach(function (enemy) {
+        g.remove(enemy);
+        var index = enemies.indexOf(enemy);
+        if (index !== -1) enemies.splice(index, 1);
+      });
+
+      unitsToRemove.forEach(function (unit) {
+        g.remove(unit);
+        var index = army.indexOf(unit);
+        if (index !== -1) army.splice(index, 1);
+      });
+
+      //If the player is hit...
+      if (playerHit) {
+        //Make the player semi-transparent
+        player.alpha = 0.5;
+        //Reduce the width of the health bar's inner rectangle by 1 pixel
+        //healthBar.inner.width -= 1;
+      } else {
+        //Make the player fully opaque (non-transparent) if it hasn't been hit
+        player.alpha = 1;
+      }
+
+      //Check for a collision between the player and the treasure
+      if (g.hitTestRectangle(player, treasure)) {
+
+        //If the treasure is touching the player, center it over the player
+        treasure.x = player.x + 8;
+        treasure.y = player.y + 8;
+
+
+
+        if (!treasure.pickedUp) {
+          for (var i = 0; i < 50; i++) {
+            spawnMongol();
+
+          }
+          //If the treasure hasn't already been picked up,
+          //play the `chimes` sound
+          chimes.play();
+          treasure.pickedUp = true;
+        };
+      }
+
+      //Check for the end of the game
+      if (castle.bar.inner.width < 0) {
+        g.state = end;
+        message.content = "The Kamakura empire has fallen!";
+      }
+
+      //If the player has brought the treasure to the exit,
+      //end the game and display "You won!"
+      if (g.hitTestRectangle(treasure, castle)) {
+        g.state = end;
+        message.content = "You won!";
+      }
+    }
+
+    function end() {
+      //Hide the `gameScene` and display the `gameOverScene`
+      gameScene.visible = false;
+      gameOverScene.visible = true;
+    }
+
+  </script>
+</body>
