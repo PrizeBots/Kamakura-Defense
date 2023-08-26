@@ -1,7 +1,7 @@
 {
-  "name": "Ga!",
+  "name": "Kamakura Defense",
   "version": "0.0.1",
-  "description": "The world's tiniest, cutest and funnest game engine",
+  "description": "Protect Japan from the Mongolian invasion!",
   "main": "ga.js",
   "directories": {
     "example": "examples"
@@ -13,12 +13,12 @@
     "Javascript",
     "Game Engine"
   ],
-  "author": "Rex van der Spuy",
-  "license": "Ga is vehemently unlicenesed",
-  "bugs": "https://github.com/kittykatattack/ga/issues",
+  "author": "zz",
+  "license": "",
+  "bugs": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kittykatattack/ga.git"
+    "url": "https://github.com/PrizeBots/Kamakura-Defense.git"
   },
   "devDependencies": {
     "grunt": "^0.4.5",
