@@ -1,0 +1,32 @@
+Ready?
+Go!
+
+you have 1 samurai, you can select and prioritize, Defend, Attack, and Work
+
+You can create:
+Samurai = 5 food and 2 metal
+Strong but slow
+Villager = 2 food and 2 wood
+Weak attack, good workers
+Ninja = 3 food and 3 metal
+fast but weak
+Archer = 4 food and 5 wood
+slow enemy with weak attacks also weak defense
+
+Environment is dynamic
+Trees grow for wood
+Farms grow for food
+Mines mined for stone and gold.
+
+
+Castle crumbles to ground on destruction
+
+villager is created and awaits orders. Click to tell it to get: food, wood, mine
+
+right click unit to get white circle on unit and your mouse. 
+mouse circle turns green on resources and red on enemies. 
+click to move and exectute actions based on mouse color.
+
+
+build stone walls 
+create patrol paths. circle calvary
