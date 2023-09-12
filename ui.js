@@ -1,6 +1,20 @@
 //ui vars
 function makeUI() {
     makeLabels()
+    scoreLabel = g.text("Score: ", "22px sans-serif", "white");
+    scoreLabel.x = 105;
+    scoreValue = g.text("", "22px sans-serif", "white");
+    scoreValue.x = 170;
+    scoreLabel.y = 10;
+    scoreValue.y = 10;
+
+    levelLabel = g.text("Level: ", "22px sans-serif", "white");
+    levelLabel.x = 105;
+    levelLabel.y = 50;
+    levelValue = g.text("", "22px sans-serif", "white");
+    levelValue.x = 170;
+    levelValue.y = 50;
+
     foodLabel = g.text("Food: ", "22px sans-serif", "black");
     foodLabel.x = gameWidth - console_bg.width + consolePadding;
     foodValue = g.text("", "22px sans-serif", "black");
@@ -42,20 +56,24 @@ function makeLabels() {
     buttons.push(makeVillagerButton);
     makeFarmButton = g.button(buttonFrames);
     buttons.push(makeFarmButton);
+    makeHouseButton = g.button(buttonFrames);
+    buttons.push(makeHouseButton);
+    makeWallButton = g.button(buttonFrames);
+    buttons.push(makeWallButton);
 
     //Debug
     makeDebugButton = g.button(buttonFrames);
     makeDebugButton.x = g.canvas.width - console_bg.width + consolePadding * 6;
-    makeDebugButton.y += 100;
-    
+   // makeDebugButton.y += 10;
+
     makeMongolButton = g.button(buttonFrames);
-    makeMongolButton.x = g.canvas.width - console_bg.width + consolePadding;
-    makeMongolButton.y += 700;
+    makeMongolButton.x = g.canvas.width - console_bg.width + consolePadding * 6;
+    makeMongolButton.y += 900;
 
     /////Labels
-   
 
-    villagerLabel = g.text("Villager: 2 food", "16px sans-serif", "black");
+
+    villagerLabel = g.text("Villager: " + villagerFood + " food", "16px sans-serif", "black");
     villagerLabel.x = gameWidth - console_bg.width + consolePadding;
     villagerLabel.y += 130;
     makeVillagerButton.x = g.canvas.width - console_bg.width + consolePadding;
@@ -64,7 +82,7 @@ function makeLabels() {
     villagerCountValue.x = gameWidth - console_bg.width + 2;
     villagerCountValue.y += 130;
 
-    samuraiLabel = g.text("Samurai: 5 food 2 stone", "16px sans-serif", "black");
+    samuraiLabel = g.text("Samurai: " + samuraiFoodCost + " food,  " + samuraiWoodCost + " wood,  " + samuraiStoneCost + " stone,  " + samuraiGoldCost + " gold,", "12px sans-serif", "black");
     samuraiLabel.x = gameWidth - console_bg.width + consolePadding;
     samuraiLabel.y += 200;
     makeSamuraiButton.x = g.canvas.width - console_bg.width + consolePadding;
@@ -73,7 +91,7 @@ function makeLabels() {
     samuraiCountValue.x = gameWidth - console_bg.width + 2;
     samuraiCountValue.y += 200;
 
-    ninjaLabel = g.text("Ninja: 25 food 2 stone 2 wood 3 gold", "16px sans-serif", "black");
+    ninjaLabel = g.text("Ninja: " + NinjaFood + "  food " + NinjaWood + "  wood " + NinjaStone + " stone " + NinjaGold + "  gold", "16px sans-serif", "black");
     ninjaLabel.x = gameWidth - console_bg.width + consolePadding;
     ninjaLabel.y += 270;
     makeNinjaButton.x = g.canvas.width - console_bg.width + consolePadding;
@@ -94,14 +112,40 @@ function makeLabels() {
     farmLabel = g.text("Farm: 2 wood", "16px sans-serif", "black");
     farmLabel.x = gameWidth - console_bg.width + consolePadding;
     farmLabel.y += 480;
-    makeFarmButton.x = g.canvas.width - console_bg.width + consolePadding;;
+    makeFarmButton.x = g.canvas.width - console_bg.width + consolePadding;
     makeFarmButton.y += 430;
     farmCountValue = g.text("", "16px sans-serif", "black");
     farmCountValue.x = gameWidth - console_bg.width + 2;
     farmCountValue.y += 480;
+
+    houseLabel = g.text("House: " + "\n" + " 50 wood", "16px sans-serif", "black");
+    houseLabel.x = g.canvas.width - 100;
+    houseLabel.y += 480;
+    makeHouseButton.x = g.canvas.width - 100;
+    makeHouseButton.y += 430;
+    houseCountValue = g.text("", "16px sans-serif", "black");
+    houseCountValue.x = g.canvas.width - 120;
+    houseCountValue.y += 480;
+    
+    wallLabel = g.text("Wall: 10 stone", "16px sans-serif", "black");
+    wallLabel.x =gameWidth - console_bg.width + consolePadding;
+    wallLabel.y += 550;
+    makeWallButton.x = g.canvas.width - console_bg.width + consolePadding;
+    makeWallButton.y += 500;
+    wallCountValue = g.text("", "16px sans-serif", "black");
+    wallCountValue.x = gameWidth - console_bg.width + 2;
+    wallCountValue.y += 550;
 }
 
 function updateUI() {
+    food = Math.round(food * 100) / 100;
+    wood = Math.round(wood * 100) / 100;
+    stone = Math.round(stone * 100) / 100;
+
+    gold = Math.round(gold * 100) / 100;
+    
+    scoreValue.content = score;
+    levelValue.content = level;
     foodValue.content = food;
     woodValue.content = wood;
     stoneValue.content = stone;
@@ -115,4 +159,6 @@ function updateUI() {
 
     //Resource Counts
     farmCountValue.content = farmCount;
+    houseCountValue.content = houseCount;
+    wallCountValue.content = houseCount;
 }

@@ -1,4 +1,21 @@
 
+villagerFood = 1;
+VillagerWood = 0;
+VillagerStone = 0;
+villagerGold = 0;
+//
+samuraiFoodCost = 3;
+samuraiWoodCost = 2;
+samuraiStoneCost = 2;
+samuraiGoldCost = 2;
+
+NinjaFood = 5;
+NinjaWood = 3;
+NinjaStone = 3;
+NinjaGold = 3;
+
+mongolFoodCost = 50;
+mongolWoodCost = 0;
 function makeEntity(type) {
 
     if (type == "mongol") {
@@ -6,12 +23,14 @@ function makeEntity(type) {
         entity = g.rectangle(14, 20, "brown");
         entity.type = "mongol";
         entity.status = "attack";
-        speed = 2;
-        entity.attack = 0.11;
+        speed = 1.5;
+        entity.attack = 0.2;
         entity.health = 100;
+        
+       
         entity.baseHealth = entity.health;
-        entity.foodCost = 5;
-        entity.woodCost = 0;
+        entity.foodCost = mongolFoodCost;
+        entity.woodCost = mongolWoodCost;
         entity.stoneCost = 3;
         entity.goldCost = 5;
     }
@@ -25,10 +44,10 @@ function makeEntity(type) {
         entity.attack = 2;
         entity.health = 100;
         entity.baseHealth = entity.health;
-        entity.foodCost = 5;
-        entity.woodCost = 0;
-        entity.stoneCost = 3;
-        entity.goldCost = 5;
+        entity.foodCost = samuraiFoodCost;
+        entity.woodCost = samuraiWoodCost;
+        entity.stoneCost = samuraiStoneCost;
+        entity.goldCost = samuraiGoldCost;
 
     }
     else if (type == "villager") {
@@ -37,10 +56,10 @@ function makeEntity(type) {
         entity.status = "ready";
         speed = 2;
 
-        entity.attack = 1;
+        entity.attack = .1;
         entity.health = 50;
         entity.baseHealth = entity.health;
-        entity.foodCost = 2;
+        entity.foodCost = villagerFood;
         entity.woodCost = 0;
         entity.stoneCost = 0;
         entity.goldCost = 0;
@@ -51,7 +70,7 @@ function makeEntity(type) {
         entity.status = "attack";
         speed = 3;
 
-        entity.attack = 3;
+        entity.attack = 2;
         entity.health = 70;
         entity.baseHealth = entity.health;
         entity.foodCost = 30;
@@ -66,8 +85,8 @@ function makeEntity(type) {
         entity.status = "attack";
 
         entity.speed = 10;
-        entity.attack = 10;
-        entity.health = 500;
+        entity.attack = 1;
+        entity.health = 210;
         entity.baseHealth = entity.health;
         entity.foodCost = 100;
         entity.woodCost = 100;
@@ -75,15 +94,28 @@ function makeEntity(type) {
         entity.goldCost = 100;
 
     }
-
     else if (type == "ogre") {
         entity = g.rectangle(48, 64, "purple");
         entity.type = "ogre";
         entity.status = "attack";
       
         entity.speed = 2;
-        entity.attack = 10;
-        entity.health = 300;
+        entity.attack = 2;
+        entity.health = 250;
+        entity.baseHealth = entity.health;
+        entity.foodCost = 5;
+        entity.woodCost = 0;
+        entity.stoneCost = 3;
+        entity.goldCost = 5;
+    }
+    else if (type == "mArcher") {
+        entity = g.rectangle(8, 16, "orange");
+        entity.type = "mArcher";
+        entity.status = "attack";
+      
+        entity.speed = 2;
+        entity.attack = .5;
+        entity.health = 50;
         entity.baseHealth = entity.health;
         entity.foodCost = 5;
         entity.woodCost = 0;
@@ -96,6 +128,7 @@ function makeEntity(type) {
     entity.baseHealth = entity.health;
     entity.destinationX = 0;
     entity.destinationY = 0;
+    entity.thinkTime = 0;
     //
     entity.interactive = true;
     entity.selected = false;

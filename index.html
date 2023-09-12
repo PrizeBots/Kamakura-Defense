@@ -23,7 +23,7 @@
     //Create a new Ga instance, and start it.
     //Pre-load images in the array.
     gameHeight = 940;
-    gameWidth = 1900;
+    gameWidth = 1800;
     var g = ga(
       gameWidth, gameHeight, setup,
       [
@@ -55,7 +55,25 @@
     let lastTime = Date.now();
     let accumulatedTime = 0;
     const timestep = 1000 / 60; // aiming for 60 updates per second, but you can adjust this
+    //Game Loop
+    var score = 0;
+    var level = 0;
+    var mongolSpawnCount = 10;
+    var ogreSpawnCount = 0;
+    var mArcherSpawnCount = 0;
 
+
+    //Wave 1
+    var mongolFrequency = 200;
+    var mongolFrequencyBase = mongolFrequency;
+    var ogreBaseFrequency = 1600;
+    var ogreFrequency = ogreBaseFrequency;
+    var treeFrequency = 1200;
+    var treeFrequencyBase = treeFrequency;
+    var mineFrequency = 2200;
+    var mineFrequencyBase = mineFrequency;
+
+    //
     var notice, message;
     var gameScene, gameOverScene;
     //Game vars
@@ -74,13 +92,16 @@
     var treePool = [];
     var farmPool = [];
     var minePool = [];
-
+    var treeMax = 20;
+    var mineMax = 15;
     //Player vars
     var food, stone, wood, gold;
     army = [];
     houses = [];
     resources = [];
 
+    var entityArrays = [];
+    entityArrays.push(army, houses, resources);
 
     //Unit Vars
     var selectedUnits = [];
@@ -104,15 +125,15 @@
       60, 40                    //The `width` and `height` of each frame
     );
 
-
-    var buttonClick = false;
     var buttons = [];
 
     //Resources
     var tree, mine, farm;
     var farmCountValue, treeCountValue;
-    var farmCount, treeCount;
-
+    var farmCount;
+    var houseCount, houseCountValue;
+    var treeCount = 0;
+    var mineCount = 0;
 
     //Util
     var cursor;
@@ -138,20 +159,31 @@
 
 
     function setup() {
-
+      //Game Loop
+      wave = 1;
+      waveTimer = 60;
+      mongolSpawnCount = 10;
+      ogreSpawnCount = 0;
+      mArcherSpawnCount = 0;
+      var numberOfEnemies = 6;
+      var startingTrees = 20;
+      var startingMines = 20;
       //Starting Resources
       food = 10;
-      stone = 0;
+      stone = 10;
       wood = 10;
-      gold = 0;
+      gold = 10;
 
       //Set the canvas border and background color
       g.canvas.style.border = "1px black dashed";
       g.backgroundColor = "white";
-      ground_bg = g.rectangle(gameWidth, gameHeight, "tan", "black", 1);
-      ocean = g.rectangle(100, gameHeight, "lightblue", "black", 1);
+      kamikazeBar = g.rectangle(gameWidth, 80, "blue", "black", 1);
+      ground_bg = g.rectangle(gameWidth, gameHeight - kamikazeBar.height, "tan", "black", 1);
+      ground_bg.y += kamikazeBar.height;
+      ocean = g.rectangle(100, gameHeight + kamikazeBar.height, "lightblue", "black", 1);
+      ocean.y += kamikazeBar.height;
 
-      console_bg = g.rectangle(300, gameHeight, "white", "black", 4);
+      console_bg = g.rectangle(300, gameHeight + kamikazeBar.height, "white", "black", 4);
       console_bg.x = gameWidth - console_bg.width;
 
       //Create the `gameScene` group
@@ -159,11 +191,12 @@
 
       kingdom = g.rectangle(140, gameHeight, "Gold", "black", 1);
       kingdom.x = gameWidth - console_bg.width - kingdom.width;
+      kingdom.y += kamikazeBar.height;
 
       castle = g.rectangle(100, 100, "grey", "black", 1);
       castle.health = 500;
       castle.baseHealth = castle.health;
-      castle.attack = 10;
+      castle.attack = 7;
       castle.bar = makeHealthBar(castle.width, 8);
       castle.addChild(castle.bar);
 
@@ -173,13 +206,12 @@
       kingdom.alpha = .5
 
       //create trees
-      for (var i = 0; i < 10; i++) {
+      for (var i = 0; i < startingTrees; i++) {
         spawnTree();
-
       }
 
       //create mines
-      for (var i = 0; i < 10; i++) {
+      for (var i = 0; i < startingMines; i++) {
         spawnMine();
       }
 
@@ -217,31 +249,30 @@
 
       makeSamuraiButton.press = function () {
         spawnSamurai();
-        buttonClick = true;
       };
 
       makeVillagerButton.press = function () {
         spawnVillager();
-        buttonClick = true;
       };
 
       makeNinjaButton.press = function () {
         spawnNinja();
-        buttonClick = true;
       };
       makeHeroButton.press = function () {
         spawnHero();
-        buttonClick = true;
       };
 
       makeFarmButton.press = function () {
         spawn("farm");
-        buttonClick = true;
+      };
+
+      makeHouseButton.press = function () {
+        spawn("house");
       };
 
       makeMongolButton.press = function () {
         spawnMongol();
-        buttonClick = true;
+        spawnOgre();
       };
 
       makeDebugButton.press = function () {
@@ -264,13 +295,8 @@
       //   console.log("tapped");
       // };
 
-      // //Position the button
-
-
       //Create the `chimes` sound object
       chimes = g.sound("sounds/chimes.wav");
-
-
 
       //The player sprite
       player = g.rectangle(32, 32, "blue");
@@ -289,20 +315,12 @@
       //treasure.x = g.canvas.width - treasure.width - 10;
       treasure.x = 10;
       treasure.y = g.canvas.height / 2 - treasure.halfHeight;
-
-      //Alternatively, you could use Ga's built in convience method
-      //called `putCenter` to postion the sprite like this:
-      //g.stage.putCenter(treasure, 208, 0);
-
-      //Create a `pickedUp` property on the treasure to help us Figure
-      //out whether or not the treasure has been picked up by the player
       treasure.pickedUp = false;
 
       //Add the treasure to the `gameScene`
       gameScene.addChild(treasure);
       //Make the enemies
-      var numberOfEnemies = 6,
-        spacing = 48,
+      var spacing = 48,
         xOffset = 150,
         speed = 2,
         direction = 1;
@@ -318,9 +336,10 @@
       gameScene.addChild(cursor);
 
       //UI Text
-      // notice = g.text("", "64px Futura", "black", 20, 20);
-      // notice.x = 120;
-      // notice.y = g.canvas.height / 2 - 64;
+      notice = g.text("", "64px Futura", "black", 20, 20);
+      notice.x = 120;
+      notice.y = g.canvas.height / 2 - 64;
+      notice.content = " ";
 
       //uiScene = g.group(notice);
 
@@ -362,22 +381,71 @@
       if (cursorStatus != "placing" && thing == "farm") {
         if (wood >= 2) {
           wood -= 2;
+
           var farm;
           if (farmPool.length > 0) {
             farm = farmPool.pop();
             farm.visible = true;
           } else {
-            farm = makeEntity("ogre");
+            farm = makeResource("farm", g.pointer.x, g.pointer.y, 3, 4);
             gameScene.addChild(farm);
             // 
           }
-          var farm = makeResource("farm", g.pointer.x, g.pointer.y, 3, 4);
           resources.push(farm);
           farm.active = false;
           cursorStatus = "placing";
           objToPlace = farm;
+        } else {
+          notice.content = "We need more wood!";
+          setTimeout(function () {
+            notice.content = " ";
+          }, 2250); // The delay time is in milliseconds
+
         }
       }
+
+      if (cursorStatus != "placing" && thing == "house") {
+        // if (wood >= 2) {
+        //   wood -= 2;
+        //   var farm;
+        //   if (farmPool.length > 0) {
+        //     farm = farmPool.pop();
+        //     farm.visible = true;
+        //   } else {
+        //     farm = makeResource("farm", g.pointer.x, g.pointer.y, 3, 4);
+        //     gameScene.addChild(farm);
+        //     // 
+        //   }
+        //   resources.push(farm);
+        //   farm.active = false;
+        //   cursorStatus = "placing";
+        //   objToPlace = farm;
+        // }
+      }
+
+      //   function spawnFarm(farmX,farmY) {
+      //   var farm;
+      //   if (farmPool.length > 0) {
+      //     farm = farmPool.pop();
+      //     farm.visible = true;
+
+      //   } else {
+      //     var tX = g.randomInt(ocean.width, g.canvas.width - console_bg.width - kingdom.width - 128);
+      //     var tY = g.randomInt(0, g.canvas.height - 100);
+      //     farm = makeResource("mine", tX, tY, 3, 4);
+      //     gameScene.addChild(farm);
+      //   }
+
+      //   resources.push(farm);
+      //   ///buddy bumpers
+      //   resources.forEach(function (thing) {
+      //     if (farm != thing) {
+      //       g.hit(farm, thing, true, true, true);
+      //     }
+      //   });
+      // }
+
+
       // else if (thing == "tree") {
       //   var tX = g.randomInt(ocean.width, g.canvas.width - console_bg.width - kingdom.width - 128);
       //   var tY = g.randomInt(0, g.canvas.height - 100);
@@ -405,11 +473,13 @@
       }
     }
 
+
     function spawnTree() {
       var tree;
+      treeCount++;
       if (treePool.length > 0) {
         tree = minePool.pop();
-        tree.visible = true;
+        if (tree) tree.visible = true;
 
       } else {
         var tX = g.randomInt(ocean.width, g.canvas.width - console_bg.width - kingdom.width - 128);
@@ -421,24 +491,44 @@
       resources.push(tree);
       ///buddy bumpers
       resources.forEach(function (thing) {
-        if (tree != thing) {
+        if (tree != thing && tree) {
           g.hit(tree, thing, true, true, true);
         }
       });
+    }
 
+    function spawnFarm(farmX, farmY) {
+      var farm;
+      if (farmPool.length > 0) {
+        farm = farmPool.pop();
+        farm.visible = true;
 
+      } else {
+        // var tX = g.randomInt(ocean.width, g.canvas.width - console_bg.width - kingdom.width - 128);
+        // var tY = g.randomInt(0, g.canvas.height - 100);
+        farm = makeResource("farm", tX, tY, 3, 4);
+        gameScene.addChild(farm);
+      }
 
+      resources.push(farm);
+      ///buddy bumpers
+      resources.forEach(function (thing) {
+        if (farm != thing) {
+          g.hit(farm, thing, true, true, true);
+        }
+      });
     }
 
     function spawnMine() {
       var mine;
+      mineCount++;
       if (minePool.length > 0) {
         mine = minePool.pop();
         mine.visible = true;
 
       } else {
         var tX = g.randomInt(ocean.width, g.canvas.width - console_bg.width - kingdom.width - 128);
-        var tY = g.randomInt(0, g.canvas.height - 100);
+        var tY = g.randomInt(kamikazeBar.height, g.canvas.height - 100);
         mine = makeResource("mine", tX, tY, 3, 4);
         gameScene.addChild(mine);
       }
@@ -455,6 +545,7 @@
 
     function spawnOgre() {
       ///var mongol = makeMongol();
+      score += 5;
       var ogre;
       if (ogrePool.length > 0) {
         ogre = ogrePool.pop();
@@ -462,15 +553,14 @@
       } else {
         ogre = makeEntity("ogre");
         gameScene.addChild(ogre);
-        // }
-        ogre.x = 50;
-        ogre.y = g.randomInt(0, g.canvas.height - ogre.height);
-        enemies.push(ogre);
-      }
+      };
+      ogre.x = 50;
+      ogre.y = g.randomInt(ogre.height + kamikazeBar.height, g.canvas.height - ogre.height);
+      enemies.push(ogre);
     };
 
     function spawnMongol() {
-  
+      score++;
       var mongol;
       if (mongolPool.length > 0) {
         mongol = mongolPool.pop();
@@ -482,16 +572,22 @@
       }
 
       mongol.x = 50;
-      mongol.y = g.randomInt(0, g.canvas.height - mongol.height);
+      mongol.y = g.randomInt(mongol.height + kamikazeBar.height, g.canvas.height - mongol.height);
       enemies.push(mongol);
     }
 
 
     function spawnSamurai() {
-      if (food >= 5 && stone >= 2) {
-        food -= 5;
-        stone -= 2;
+      setTimeout(function () {
+        // Code to execute after the delay
+      }, 250); // The delay time is in milliseconds
+      if (food >= samuraiFoodCost && wood >= samuraiWoodCost && stone >= samuraiStoneCost && gold >= samuraiGoldCost) {
+        food -= samuraiFoodCost;
+        wood -= samuraiWoodCost;
+        stone -= samuraiStoneCost;
+        gold -= samuraiGoldCost;
         var samurai;
+        score++;
         //chimes.play();
         if (samuraiPool.length > 0) {
           samurai = samuraiPool.pop();
@@ -507,16 +603,26 @@
         samurai.y = castle.y + g.randomInt(-20, castle.height + 20);
         samurai.destinationX = castle.x - 250;
         samurai.destinationY = castle.y + g.randomInt(-20, castle.height + 20);
-      }
+      }else if(food < samuraiFoodCost) {
+          notice.content = "We need more food!";
+          setTimeout(function () {
+            notice.content = " ";
+          }, 2250); // The delay time is in milliseconds
+
+        }
     }
     function spawnNinja() {
-
-      if (food >= 25 && stone >= 2 && wood >= 2 && gold >= 3) {
-        food -= 25;
-        stone -= 2;
-        wood -= 2;
-        gold -= 3;
+      setTimeout(function () {
+        // Code to execute after the delay
+      }, 250); // The delay time is in milliseconds
+      if (food >= NinjaFood && stone >= NinjaStone && wood >= NinjaWood && gold >= NinjaGold) {
+        food -= NinjaFood;
+        wood -= NinjaWood;
+        stone -= NinjaStone;
+        gold -= NinjaGold;
         var ninja;
+        score++;
+
 
         if (ninjaPool.length > 0) {
           ninja = ninjaPool.pop();
@@ -541,6 +647,8 @@
         wood -= 2;
         gold -= 3;
         var hero;
+        score++;
+
         if (heroPool.length > 0) {
           hero = heroPool.pop();
           hero.visible = true;
@@ -557,11 +665,15 @@
       }
     }
     function spawnVillager() {
-      var ogreChance = g.randomInt(1, 10)
-      if (ogreChance > 9) spawnOgre();
-      if (food >= 2) {
-        food -= 2;
+
+      // setTimeout(function () {
+      //   // Code to execute after the delay
+      // }, 450); // The delay time is in milliseconds
+      if (food >= villagerFood && wood >= VillagerWood) {
+        food -= villagerFood;
+        wood -= VillagerWood;
         var villager;
+        score++;
         if (villagerPool.length > 0) {
           villager = villagerPool.pop();
           villager.visible = true;
@@ -570,11 +682,13 @@
           gameScene.addChild(villager);
         }
         //assign the villager their home
-        villager.house = g.randomInt(0, houses.length);
-
-        villager.x = houses[villager.house].x;
-        villager.y = houses[villager.house].y + g.randomInt(0, houses[villager.house].height);
-
+        villager.house = g.randomInt(0, houses.length-1);
+        console.log( villager.house);
+        if (villager.house) {
+          console.log( villager.house, " :",houses[villager.house].x," , ",houses[villager.house].y)
+          villager.x = houses[villager.house].x;
+          villager.y = houses[villager.house].y + g.randomInt(0, houses[villager.house].height);
+        }
         army.push(villager);
 
         //move villager to ready position
@@ -582,8 +696,6 @@
         villager.destinationY = villager.y;
       }
     }
-
-
 
     ///UNIT SELECTION////////
     function selectUnit(unit) {
@@ -627,10 +739,6 @@
 
 
     }
-    //Wave 1
-    var mongolFrequency = 50;
-    var treeFrequency = 250;
-    var mineFrequency = 450;
 
 
 
@@ -671,37 +779,58 @@
 
 
 
+    var treeMax = 30;
+    var mineMax = 20;
+
+    let lastSpawnTime = Date.now();
+
+
     function play() {
+
       // gameLoop()
       if (gameStart) {
+        // const currentTime = Date.now();
+        // if (currentTime - lastSpawnTime >= mongolFrequency) { // 3000 milliseconds = 3 seconds
+        //   spawnMongol();
+        //   lastSpawnTime = currentTime;
+        // }
         //Enemy Waves
-        mongolFrequency -= 1;
-        treeFrequency -= 1;
-        mineFrequency -= 1;
+        mongolFrequency--;
+        ogreFrequency--;
+        treeFrequency--;
+        mineFrequency--;
+        var levelRate = score / 100;
+        level = Math.floor(score / 100);
+
 
         if (mongolFrequency <= 0) {
-          mongolFrequency = 50;
+          var countdownReduction = mongolFrequencyBase * 0.1 * (level - 1);
+          mongolFrequency = mongolFrequencyBase - countdownReduction;
+          // mongolFrequency = mongolFrequencyBase * levelRate ;
           spawnMongol();
         }
-
-        if (treeFrequency <= 0) {
-          treeFrequency = 250;
+        else if (ogreFrequency <= 0) {
+          ogreFrequency = ogreBaseFrequency * levelRate;
+          spawnOgre();
+        }
+        else if (treeFrequency <= 0 && treeCount < treeMax) {
+          treeFrequency = treeFrequencyBase;
           spawnTree();
         }
-        if (mineFrequency <= 0) {
-          mineFrequency = 450;
+        else if (mineFrequency <= 0 && mineCount < mineMax) {
+          mineFrequency = mineFrequencyBase;
           spawnMine();
         }
+
 
         // Check cursor for events
         //if placing then
         if (cursorStatus == "placing") {
-
           objToPlace.x = g.pointer.x - objToPlace.width / 2;
           objToPlace.y = g.pointer.y - objToPlace.height / 2;
           //check resources for proper spacing
           resources.forEach(function (kind) {
-            if (objToPlace != kind) {
+            if (objToPlace != kind && objToPlace) {
               g.hit(objToPlace, kind, true, true, true);
             }
           });
@@ -771,15 +900,19 @@
 
         //Get a count of the farms
         farmCount = 0;
+        houseCount = 0;
+
         villagerCount = 0;
         samuraiCount = 0;
         ninjaCount = 0;
         heroCount = 0;
-        resources.forEach(function (one) {
-          if (one.type == "farm") {
-            farmCount++;
-          }
-        });
+        // resources.forEach(function (one) {
+        //   if (one) {
+        //     if (one.type == "farm") {
+        //       farmCount++;
+        //     }
+        //   }
+        // });
 
         army.forEach(function (unit) {
           //if unit is dead then remove and skip
@@ -802,9 +935,8 @@
             heroCount++;
           }
 
-          //select and deselect units
+          // select and deselect units
           unit.press = function () {
-            console.log("CLLICK!!!")
             if (!unit.selected) {
               selectUnit(unit);
               selectedUnits.push(unit);
@@ -827,15 +959,22 @@
           //Set selected unit destination to the mouse
           if (selectionCompleted && unit.selected && g.pointer.isDown) {
             //clear cursor
+
             unit.status = "moving";
             unit.destinationX = Math.round(g.pointer.x);
             unit.destinationY = Math.round(g.pointer.y);
+
+
+          } else {
+            if (g.pointer.isUp) deSelectAllUnits();
           }
 
           //Targeting vars
           var closestEnemy = null;
           var closestSource = null;
           var shortestDistance = Infinity;
+
+
           enemies.forEach(function (enemy) {
             var dx = enemy.x - unit.x;
             var dy = enemy.y - unit.y;
@@ -847,10 +986,12 @@
             }
             //if unit touches enemy then attack
             if (g.hit(unit, enemy, true, true, true)) {
-              enemy.health -= unit.attack;
-              enemy.bar.inner.width = enemy.width * (enemy.health / entity.baseHealth);
-              unit.health -= enemy.attack;
-              unit.bar.inner.width = unit.width * (unit.health / unit.baseHealth);
+              if (unit && enemy) {
+                enemy.health -= unit.attack;
+                enemy.bar.inner.width = enemy.width * (enemy.health / entity.baseHealth);
+                unit.health -= enemy.attack;
+                unit.bar.inner.width = unit.width * (unit.health / unit.baseHealth);
+              }
             }
           });
 
@@ -885,6 +1026,7 @@
             unit.vx = dx * unit.speed;
             unit.vy = dy * unit.speed;
 
+
             //check for arrival instructions
             if (unit.x >= unit.destinationX - 5 && unit.x <= unit.destinationX + 5 && unit.y >= unit.destinationY - 5 && unit.y <= unit.destinationY + 5) {
               if (unit.type == "samurai") {
@@ -896,48 +1038,49 @@
             //Villagers
           } else if (unit.type == "villager") { //let's go!
             //look for nearest resources and get to work!
+            /// console.log(unit.status);
+            //  if (unit.status != "gathering") {
+            //If idle then go look for the nearest resource
             resources.forEach(function (resource) {
-              //   if (resource.x >= unit.x - 200 && resource.y >= unit.y - 200 && resource.x <= unit.x + 200 && resource.y <= unit.y + 200) {
-              var dx = resource.x - unit.x;
-              var dy = resource.y - unit.y;
-              var distance = Math.sqrt(dx * dx + dy * dy);
-              //Identify the closest resource
-              if (distance < shortestDistance && distance !== 0) { // avoid division by zero
-                shortestDistance = distance;
-                closestSource = resource;
-                unit.status = "gathering"
+              if (resource) {
+                //   if (resource.x >= unit.x - 200 && resource.y >= unit.y - 200 && resource.x <= unit.x + 200 && resource.y <= unit.y + 200) {
+                var dx = resource.x - unit.x;
+                var dy = resource.y - unit.y;
+                var distance = Math.sqrt(dx * dx + dy * dy);
+                //Identify the closest resource
+                if (distance < shortestDistance && distance !== 0) { // avoid division by zero
+                  shortestDistance = distance;
+                  closestSource = resource;
+                  unit.status = "gathering"
+                }
               }
-              // }
             });
+            ///  }
             //When we get to the source, let's get it!
             if (unit.status == "gathering" && closestSource && g.hit(unit, closestSource, true, true, true)) {
-              // setTimeout(function () {
-              // }, unit.gatherRate); // 250 milliseconds is 0.25 seconds
-              //get it if theres some left
-              if (closestSource.resourceQuantity > 0) {
-                setTimeout(function () {
-                }, 1500);
-
-                //get what it is
-                var gather = g.strobe(closestSource, 1, 2, 20, 10);
-                closestSource.resourceQuantity -= unit.attack;
-                if (closestSource.type == "farm") {
-                  food += 1;
-                } else if (closestSource.type == "tree") {
-                  wood += 1;
-                } else if (closestSource.type == "mine") {
-                  var chance = g.randomInt(1, 10);
-                  if (chance > 8) gold += 1;
-                  else stone += 1;
+              if (unit && closestSource) {
+                if (closestSource.resourceQuantity > 0) {
+                  var gatherRate = unit.attack / 10;
+                  closestSource.resourceQuantity -= unit.attack;
+                  if (closestSource.type == "farm") {
+                    food += gatherRate;
+                  } else if (closestSource.type == "tree") {
+                    wood += gatherRate;
+                  } else if (closestSource.type == "mine") {
+                    var chance = g.randomInt(1, 10);
+                    if (chance > 7) gold += gatherRate;
+                    else stone += gatherRate;
+                  }
+                  //the source is cashed!
+                } else {
+                  //remove source and idle villager
+                  resourcesToRemove.push(closestSource);
+                  unit.status = "idle";
+                  closestSource = null;
+                  shortestDistance = Infinity;
+                  unit.destinationX = unit.x;
+                  unit.destinationY = unit.y;
                 }
-
-
-                //the source is cashed!
-              } else {
-                //remove source and idle villager
-                resourcesToRemove.push(closestSource);
-                unit.status = "idle";
-                closestSource = null;
               }
             }
 
@@ -988,10 +1131,12 @@
           if (closestEnemy) {
             // g.hit(unit, buddy, true, true, true);
             if (g.hit(unit, closestEnemy, true, true, true)) {
-              closestEnemy.health -= unit.attack;
-              closestEnemy.bar.inner.width = closestEnemy.width * (closestEnemy.health / entity.baseHealth);
-              unit.health -= closestEnemy.attack;
-              unit.bar.inner.width = unit.width * (unit.health / unit.baseHealth);
+              if (unit && closestEnemy) {
+                closestEnemy.health -= unit.attack;
+                closestEnemy.bar.inner.width = closestEnemy.width * (closestEnemy.health / entity.baseHealth);
+                unit.health -= closestEnemy.attack;
+                unit.bar.inner.width = unit.width * (unit.health / unit.baseHealth);
+              }
             }
           }
         });
@@ -1027,9 +1172,9 @@
         //ENEMY ARRAY LOOP!!!!
         //ENEMY ARRAY LOOP!!!!
         /////////////
-        var count = 0;
+
         enemies.forEach(function (enemy) {
-          count++;
+
           if (enemy.health <= 0) {
             enemiesToRemove.push(enemy);
           }
@@ -1058,18 +1203,21 @@
           g.move(enemy);
 
           //check Enemy bumps
-          enemies.forEach(function (buddy) {
-            if (enemy != buddy) {
-              g.hit(enemy, buddy, true, true, true);
-            }
-          });
+          // enemies.forEach(function (buddy) {
+          //   if (enemy != buddy) {
+          //     g.hit(enemy, buddy, true, true, true);
+          //   }
+          // });
 
           army.forEach(function (troop) {
             if (g.hit(enemy, troop, true, true, true)) {
-              enemy.health -= troop.attack;
-              enemy.bar.inner.width = enemy.width * (enemy.health / entity.baseHealth);
-              troop.health -= enemy.attack;
-              troop.bar.inner.width = troop.width * (troop.health / troop.baseHealth);
+              if (enemy && troop) {
+                enemy.health -= troop.attack;
+                enemy.bar.inner.width = enemy.width * (enemy.health / entity.baseHealth);
+                troop.health -= enemy.attack;
+                troop.bar.inner.width = troop.width * (troop.health / troop.baseHealth);
+              }
+
             };
 
           });
@@ -1091,7 +1239,6 @@
 
           //Attack castle
           if (g.hitTestRectangle(castle, enemy)) {
-            console.log("CASTLE HIT!  " + castle.health)
             enemy.health -= castle.attack;
             enemy.bar.inner.width = enemy.width * (enemy.health / entity.baseHealth);
             castle.health -= enemy.attack;
@@ -1099,18 +1246,18 @@
           }
 
           //Click enemy to target with a red dot
-          if (g.hitTestRectangle(cursor, enemy) && selectedUnits.length && selectionCompleted && g.pointer.isDown) {
-            selectionCompleted = false;
-            var targetTag = makeIcon();
-            targetTag.fillStyle = "red";
-            enemy.addChild(targetTag);
-            var spriteFade = g.fadeOut(targetTag, 100);
-            //  enemy.addChild(cursor);
+          // if (g.hitTestRectangle(cursor, enemy) && selectedUnits.length && selectionCompleted && g.pointer.isDown) {
+          //   selectionCompleted = false;
+          //   var targetTag = makeIcon();
+          //   targetTag.fillStyle = "red";
+          //   enemy.addChild(targetTag);
+          //   var spriteFade = g.fadeOut(targetTag, 100);
+          //   //  enemy.addChild(cursor);
 
-          } else {
-            cursor.fillStyle = "white";
-            /// gameScene.addChild(cursor);
-          }
+          // } else {
+          //   cursor.fillStyle = "white";
+          //   /// gameScene.addChild(cursor);
+          // }
 
           // if (g.hitTestRectangle(cursor, enemy)) {
           //   cursor.fillStyle = "red";
@@ -1121,11 +1268,13 @@
         });
 
         enemiesToRemove.forEach(function (enemy) {
-         /// console.log("REMOVING enemy: " + enemy.type)
+          /// console.log("REMOVING enemy: " + enemy.type)
           enemy.visible = false;
           if (enemy.type == "mongol") {
+            score += 1;
             mongolPool.push(enemy);
           } else if (enemy.type == "ogre") {
+            score += 10;
             ogrePool.push(enemy);
           }
           enemy.bar.inner.width = enemy.width;
@@ -1133,10 +1282,11 @@
           //  
           var index = enemies.indexOf(enemy);
           if (index !== -1) enemies.splice(index, 1);
+
         });
 
         unitsToRemove.forEach(function (unit) {
-         // console.log("REMOVING UNIT: " + unit.type)
+          // console.log("REMOVING UNIT: " + unit.type)
           unit.visible = false;
           if (unit.type == "ninja") {
             ninjaPool.push(unit);
@@ -1150,19 +1300,22 @@
           //  
           var index = army.indexOf(unit);
           if (index !== -1) army.splice(index, 1);
-          resetEntity();
+
         });
 
         resourcesToRemove.forEach(function (source) {
           source.visible = false;
           if (source.type == "tree") {
             treePool.push(source);
+            treeCount--;
           } else if (source.type == "mine") {
             minePool.push(source);
+            mineCount--;
           } else if (source.type == "farm") {
             farmPool.push(source);
+            farmCount--;
           }
-         ////console.log("REMOVING source: " + source.type)
+          ////console.log("REMOVING source: " + source.type)
           var index = resources.indexOf(source);
           if (index !== -1) resources.splice(index, 1);
           source.resourceQuantity = g.randomInt(50, 110);
@@ -1223,20 +1376,20 @@
       }
     }
 
-    function gameLoop() {
-      let now = Date.now();
-      let deltaTime = now - lastTime;
-      lastTime = now;
+    // function gameLoop() {
+    //   let now = Date.now();
+    //   let deltaTime = now - lastTime;
+    //   lastTime = now;
 
-      accumulatedTime += deltaTime;
+    //   accumulatedTime += deltaTime;
 
-      while (accumulatedTime >= timestep) {
-        console.log(accumulatedTime)
-        // this is wher e your game logic would go
-        accumulatedTime -= timestep;
-      }
-      // render your game graphics, this can run as fast as possible
-    }
+    //   while (accumulatedTime >= timestep) {
+    //     console.log(accumulatedTime)
+    //     // this is wher e your game logic would go
+    //     accumulatedTime -= timestep;
+    //   }
+    //   // render your game graphics, this can run as fast as possible
+    // }
 
     function end() {
       //Hide the `gameScene` and display the `gameOverScene`
